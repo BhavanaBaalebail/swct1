@@ -1,98 +1,188 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useEffect, useRef, useState } from 'react';
+import { Animated, FlatList, Linking, Pressable, Text, View } from 'react-native';
+import { getNotifications, Notification, removeNotification, resendMailReviewReminder } from '../../services/notificationApi';
 
-export default function HomeScreen() {
+
+
+const COLORS = {
+  background: '#F6F1EB',
+  purpleDark: '#3E1B5E',
+  purpleMid: '#6F42A6',
+  purpleSoft: '#C9B8E6',
+  white: '#FFFFFF',
+};
+
+export default function ReminderInbox() {
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(40)).current;
+
+  // 🔁 Load reminders from storage OR API
+  useEffect(() => {
+    const loadData = async () => {
+    const apiData = await getNotifications();
+    setNotifications(apiData);
+
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 350,
+          useNativeDriver: true,
+        }),
+        Animated.spring(slideAnim, {
+          toValue: 0,
+          damping: 14,
+          stiffness: 120,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    };
+
+    loadData();
+  }, []);
+
+
+  const dismiss = async (id: string) => {
+  await removeNotification(id);
+  const updated = await getNotifications();
+  setNotifications(updated);
+};
+const bringBackMailReviewReminder = async () => {
+  await resendMailReviewReminder();
+  const updated = await getNotifications();
+  setNotifications(updated);
+};
+
+
+  const renderItem = ({ item }: { item: Notification }) => (
+    <Animated.View
+      style={{
+        opacity: fadeAnim,
+        transform: [{ translateY: slideAnim }],
+        marginBottom: 20,
+      }}
+    >
+      <LinearGradient
+        colors={[COLORS.purpleDark, COLORS.purpleMid]}
+        style={{
+          padding: 20,
+          shadowColor: '#000',
+          shadowOpacity: 0.25,
+          shadowRadius: 12,
+          elevation: 8,
+        }}
+      >
+        <Text
+          style={{
+            fontSize: 12,
+            letterSpacing: 1,
+            color: '#E8DDF8',
+            marginBottom: 6,
+          }}
+        >
+          REMINDER
+        </Text>
+
+        <Text
+          style={{
+            fontSize: 18,
+            fontWeight: '600',
+            color: COLORS.white,
+            marginBottom: 6,
+          }}
+        >
+          {item.title}
+        </Text>
+
+        <Text
+          style={{
+            color: '#EFE9F7',
+            lineHeight: 22,
+            marginBottom: 18,
+          }}
+        >
+          {item.description}
+        </Text>
+
+        <View
+          style={{
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+          }}
+        >
+          <Pressable
+            onPress={() => Linking.openURL('https://www.google.com')}
+            style={{
+              backgroundColor: COLORS.white,
+              paddingVertical: 10,
+              paddingHorizontal: 26,
+            }}
+          >
+            <Text
+              style={{
+                color: COLORS.purpleDark,
+                fontWeight: '500',
+              }}
+            >
+              Yes
+            </Text>
+          </Pressable>
+
+          <Pressable
+            onPress={() => dismiss(item.id)}
+            style={{
+              backgroundColor: 'rgba(255,255,255,0.25)',
+              paddingVertical: 10,
+              paddingHorizontal: 26,
+            }}
+          >
+            <Text
+              style={{
+                color: COLORS.white,
+                fontWeight: '500',
+              }}
+            >
+              Cancel
+            </Text>
+          </Pressable>
+        </View>
+      </LinearGradient>
+    </Animated.View>
+  );
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
+    <LinearGradient
+      colors={[COLORS.background, '#EFE7F6']}
+      style={{ flex: 1, padding: 20 }}
+    >
+      {/* Header */}
+      <View style={{ marginBottom: 30 }}>
+        <LinearGradient
+          colors={[COLORS.purpleMid, COLORS.purpleSoft]}
+          style={{ height: 4, width: 80, marginBottom: 12 }}
         />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+        <Text
+          style={{
+            fontSize: 26,
+            fontWeight: '600',
+            color: COLORS.purpleDark,
+          }}
+        >
+          Levelled Checklist Reminder
+        </Text>
+        <Text style={{ marginTop: 6, color: '#6A5C7A' }}>
+          Pending tasks that require your action
+        </Text>
+      </View>
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+      <FlatList
+        data={notifications}
+        keyExtractor={item => item.id}
+        renderItem={renderItem}
+        showsVerticalScrollIndicator={false}
+      />
+    </LinearGradient>
   );
 }
-
-const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
-  },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
-  },
-});

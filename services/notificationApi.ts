@@ -8,7 +8,7 @@ export type Notification = {
   status: 'PENDING' | 'COMPLETED';
 };
 
-// 🔔 In-memory "DB" (mock backend state)
+//  In-memory "DB" (mock backend state)
 let notificationStore: Notification[] = [
   {
     id: '1',
